@@ -90,6 +90,7 @@ int main(int argc,char **argv)
     
     int countX = 1;
 	for(; LEN >= 1024; LEN -= 1024 ){
+        bzero(recvbf, 1024);
 		read(sock, recvbf, 1024);
         usleep(300);
         if(countX > 610) printf("PACKET %d RECV'd ", countX); countX++;
@@ -100,6 +101,7 @@ int main(int argc,char **argv)
 		printf("\n");}
 		fwrite(recvbf, 1024, 1, fp);
 	}
+    bzero(recvbf, 1024);
 	read(sock, recvbf, 1024);
     usleep(300);
     printf("PACKET %d RECV'd ", countX); countX++;
