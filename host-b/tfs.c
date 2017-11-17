@@ -1,0 +1,174 @@
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <regex.h>
+ 
+int main(int argc, char **argv)
+{	    
+	if(argc != 3){
+        printf("Augments format: \"<filename executable> <IP addr> <port #>\"\n");
+        return 1;
+    }
+    char sendbf[1024];
+	char recvbf[1024];
+	long siz;
+    int listen_fd, sock;
+    struct sockaddr_in servaddr;
+ 
+    listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+ 
+    bzero( &servaddr, sizeof(servaddr));
+ 	
+	unsigned long x;
+	x = strtol(argv[2], NULL, 0);
+	x = (int) x;
+    servaddr.sin_family = AF_INET;
+    //servaddr.sin_addr.s_addr = htonl((10<<24)|(10<<16))|(1<<8)|100);
+	//servaddr.sin_addr.s_addr = htons(INADDR_ANY);
+    servaddr.sin_addr.s_addr = inet_addr(argv[1]);
+    servaddr.sin_port = htons(x);
+ 
+    int set = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+
+    bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+    listen(listen_fd, 10);
+    sock = accept(listen_fd, (struct sockaddr*) NULL, NULL);
+    
+    // read for file size in #of bytes
+    bzero(recvbf, 1024);
+	read(sock, recvbf, 100);         
+    
+    //LEN = total file size
+    int LEN = strtol(recvbf, NULL, 0);
+
+	FILE* fp;
+	fp = fopen("zf.zip", "w");	
+	int count = 1;
+	for(; LEN >= 1024; LEN -= 1024 ){
+	 	bzero(recvbf, 1024);					
+		read(sock, recvbf, 1024);
+        usleep(300);
+        printf("PACKET %d RECV'd ", count); count++;
+        int i=0;        
+        for(; i<10; i++){
+			printf("%X", recvbf[i]);
+		}
+		printf("\n");
+		fwrite(recvbf, 1024, 1, fp);
+	}
+    //using LEN to terminate above loop but one extra step of read()
+    bzero(recvbf, 1024);
+	read(sock, recvbf, 1024);
+    usleep(300);
+    printf("PACKET %d RECV'd ", count); count++;
+    int i=0;    
+    for(; i<10; i++){
+			printf("%X", recvbf[i]);
+		}
+	printf("\n");
+	
+    //LAST = LEN %1024 746
+    size_t last = LEN %1024;	
+	printf("%lu\n", (unsigned long)last);
+	fwrite(recvbf, last, 1, fp);
+	fclose(fp); 
+
+	system("unzip zf.zip > filename.txt");
+    sleep(1);
+    system("cat filename.txt");
+	
+	FILE* p = fopen("filename.txt", "r");
+	char name[100];
+	
+	while(!feof(p)){
+		fscanf(p,"%99s",name);
+	}	
+    printf("%s_dsadasdasd\n", name);
+	fclose(p);	
+	
+	// Find REGULAR EXPRESSOION MAY NOT BE NEEDED
+	/*
+		//REG EXPRESION
+		char* regexPattern = "\S+\.txt";
+		regex_t regexCompiled;
+		regmatch_t groupArray[1];
+		if(regcomp(&regexCompiled, regexPattern, 0)){
+			printf("Could not compile regular expression.\n");
+			return 1;
+		}		
+		printf("%sdsadasdasd\n", name);
+		if(regexec(&regexCompiled, name, 1, groupArray, 0)){
+			printf("Can not match anything of regular expression\n");
+			return 1;
+		}
+	*/
+	
+	
+	//&&&CHANGE this to MATCH FILENAME
+	fp = fopen(name, "rb+");  
+	fseek(fp, 0L, SEEK_END);
+	siz = ftell(fp);
+	fclose(fp);
+	
+	/* round 2 */
+
+	char st[100]; 
+	sprintf(st, "%ld", siz);
+	write(sock, st, strlen(st)+1);
+	
+	//&&&CHANGE this to MATCH FILENAME
+	fp = fopen(name, "rb+");
+    int countX = 1;
+	do{
+		bzero(sendbf, 1024);
+		fread(sendbf, 1024, 1, fp);	
+        if(countX > 610) printf("PACKET %d SENT ", countX); countX++;
+        int i=0;		
+        if(countX > 610){for(; i<10; i++){
+			printf("%X", sendbf[i]);
+		}
+		printf("\n");}
+		write(sock, sendbf, 1024);
+		if(ferror(fp)){
+			puts("File reading error");		
+		}			
+	}while(!feof(fp));   //Or while(result == 0)
+	
+	fclose(fp);
+	close(sock);
+
+    char fn[100];
+    strcpy(fn, "rm");
+    strcat(fn, " zf.zip");
+    strcat(fn, " filename.txt");
+    strcat(fn, " ");
+    strcat(fn, name);
+    system(fn);    
+   
+/*                     
+    char* fn = NULL;
+    int Len = strlen(name)+1; //"+1" that is before name for empty space
+    fn = malloc(22+ Len +1);  //for null terminator at endofs string
+    strcpy(fn, "rm zf.zip filename.txt");
+    strcat(fn, " ");
+    strcat(fn, name);
+	system(fn);
+    free(fn);
+*/
+}
+
+/*
+    while(1)
+    {
+ 
+        bzero( str, 100);
+        read(comm_fd,str,100); 
+        printf("Echoing back - %s",str);
+        write(comm_fd, str, strlen(str)+1);
+ 
+    }
+*/
